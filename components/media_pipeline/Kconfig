@@ -1,0 +1,3 @@
+config MEDIA_PIPELINE
+    bool
+    default n

@@ -1,0 +1,26 @@
+menu "Logging"
+
+choice HI_LOG_LEVEL
+    prompt "Log level"
+    default HI_LOG_LEVEL_INFO
+    help
+        Select the highest log level enabled in the application.
+
+config HI_LOG_LEVEL_NONE
+    bool "None"
+
+config HI_LOG_LEVEL_ERROR
+    bool "Error"
+
+config HI_LOG_LEVEL_WARN
+    bool "Warning"
+
+config HI_LOG_LEVEL_INFO
+    bool "Info"
+
+config HI_LOG_LEVEL_DEBUG
+    bool "Debug"
+
+endchoice
+
+endmenu

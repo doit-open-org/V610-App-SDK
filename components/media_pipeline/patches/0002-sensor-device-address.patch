@@ -1,0 +1,48 @@
+diff -Nur a/pipeline/src/vcap/mapi_vcap.c b/pipeline/src/vcap/mapi_vcap.c
+--- a/pipeline/src/vcap/mapi_vcap.c	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/vcap/mapi_vcap.c	2026-10-10 17:07:10.266815064 +0800
+@@ -34,6 +34,7 @@
+ #include "mapi_vcap_arch.h"
+ #include "mapi_vcap_adapt.h"
+ #include "mapi_comm_adapt.h"
++#include "ot_sns_ctrl.h"
+ 
+ /* mapi_vcap_1sec2usec is the unit of seconds to microseconds,
+ Used to calculate the time of a frame 1(s) = 1000000(us) */
+@@ -576,11 +577,13 @@
+ /*
+  * BindISPToSensor: in the new architecture sensor obj is registered into adapt
+  * directly via combo_dev_attr_t built by mapi_vcap_build_combo_dev_attr.
+- * Bus type / bus id are picked from sensor_attr.input_attr.
++ * Bus type, bus id, and optional device address are supplied by sensor_attr.
+  */
+ static td_s32 mapi_vcap_bind_isp_to_sensor(td_handle vcap_dev_hdl, td_handle vcap_pipe_hdl,
+     const hi_mapi_vcap_sensor_attr *sensor_attr)
+ {
++    const ot_isp_sns_obj *isp_sns_obj;
++    td_s32 ret;
+     td_s32 sns_bus_id;
+     hi_mapi_vcap_sensor_comm_bus_type sns_comm_bus_type;
+ 
+@@ -591,6 +594,21 @@
+         return HI_MAPI_VCAP_EILLEGAL_PARA;
+     }
+ 
++    if (sns_comm_bus_type == HI_MAPI_SENSOR_COMMBUS_TYPE_I2C &&
++        sensor_attr->sns_dev_attr.input_attr.sensor_dev_addr != 0U) {
++        isp_sns_obj = (const ot_isp_sns_obj *)sensor_attr->sns_dev_attr.sensor_obj;
++        if (isp_sns_obj == TD_NULL || isp_sns_obj->pfn_set_dev_addr == TD_NULL) {
++            MAPI_ERR_TRACE(HI_MAPI_MOD_VCAP,
++                "sensor address callback is not configured,dev[%d],pipe[%d]\n",
++                vcap_dev_hdl, vcap_pipe_hdl);
++            return HI_MAPI_VCAP_ENOTSUPPORT;
++        }
++        ret = isp_sns_obj->pfn_set_dev_addr((ot_vi_pipe)vcap_pipe_hdl,
++            sensor_attr->sns_dev_attr.input_attr.sensor_dev_addr);
++        CHECK_MAPI_VCAP_RET(ret, "set sensor address fail,dev[%d],pipe[%d]\n",
++            vcap_dev_hdl, vcap_pipe_hdl);
++    }
++
+     /* dev:sensor 1:1: master isp == pipe; bus_id comes from the externally provided combo_dev_attr. */
+     sns_bus_id = sensor_attr->combo_dev_attr.bus_id;
+ 

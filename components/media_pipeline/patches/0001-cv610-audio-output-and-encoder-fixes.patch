@@ -1,0 +1,184 @@
+diff -Nur a/pipeline/include/hi_mapi_adec_define.h b/pipeline/include/hi_mapi_adec_define.h
+--- a/pipeline/include/hi_mapi_adec_define.h	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/include/hi_mapi_adec_define.h	2026-10-10 17:11:03.963190348 +0800
+@@ -49,6 +49,9 @@
+ /* operation fail for ADEC */
+ #define HI_MAPI_ADEC_ERR_OPERATE_FAIL \
+     HI_MAPI_DEF_ERR(HI_MAPI_MOD_ADEC, MAPI_EN_ERR_LEVEL_ERROR, MAPI_EN_ERR_OPERATE_FAIL)
++/* no decoded frame is currently available */
++#define HI_MAPI_ADEC_ERR_BUF_EMPTY \
++    HI_MAPI_DEF_ERR(HI_MAPI_MOD_ADEC, MAPI_EN_ERR_LEVEL_ERROR, MAPI_EN_ERR_BUF_EMPTY)
+ /* buf full for ADEC */
+ #define HI_MAPI_ADEC_ERR_BUF_FULL \
+     HI_MAPI_DEF_ERR(HI_MAPI_MOD_ADEC, MAPI_EN_ERR_LEVEL_ERROR, MAPI_EN_ERR_BUF_FULL)
+diff -Nur a/pipeline/include/hi_mapi_ao_define.h b/pipeline/include/hi_mapi_ao_define.h
+--- a/pipeline/include/hi_mapi_ao_define.h	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/include/hi_mapi_ao_define.h	2026-10-10 17:11:03.963190348 +0800
+@@ -42,6 +42,8 @@
+ #define HI_MAPI_AO_ESTATEERR   HI_MAPI_DEF_ERR(HI_MAPI_MOD_AO, MAPI_EN_ERR_LEVEL_ERROR, MAPI_EN_ERR_NOT_PERM)
+ /* at lease one parameter is illagal for AO */
+ #define HI_MAPI_AO_EILLPARAM   HI_MAPI_DEF_ERR(HI_MAPI_MOD_AO, MAPI_EN_ERR_LEVEL_ERROR, MAPI_EN_ERR_ILLEGAL_PARAM)
++/* no AO queue slot is currently available */
++#define HI_MAPI_AO_ERR_BUF_FULL HI_MAPI_DEF_ERR(HI_MAPI_MOD_AO, MAPI_EN_ERR_LEVEL_ERROR, MAPI_EN_ERR_BUF_FULL)
+ 
+ #define MAPI_ADAPT_AO_SYSCHN_ID OT_AO_SYS_CHN_ID
+ 
+diff -Nur a/pipeline/src/adapt/h9/audio_comp/acodec/inner_acodec.c b/pipeline/src/adapt/h9/audio_comp/acodec/inner_acodec.c
+--- a/pipeline/src/adapt/h9/audio_comp/acodec/inner_acodec.c	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/adapt/h9/audio_comp/acodec/inner_acodec.c	2026-10-10 17:11:03.955586021 +0800
+@@ -53,6 +53,12 @@
+         MAPI_ERR_TRACE(HI_MAPI_MOD_ACAP, "can't open Acodec, errno: %d\n", errno);
+         return TD_FAILURE;
+     }
++    if (ioctl(g_inner_acodec_fd, OT_ACODEC_SOFT_RESET_CTRL) != TD_SUCCESS) {
++        MAPI_ERR_TRACE(HI_MAPI_MOD_ACAP, "reset Acodec failed, errno: %d\n", errno);
++        (td_void)close(g_inner_acodec_fd);
++        g_inner_acodec_fd = -1;
++        return TD_FAILURE;
++    }
+     return TD_SUCCESS;
+ }
+ 
+diff -Nur a/pipeline/src/adapt/h9/audio_comp/audio_comp_adec.c b/pipeline/src/adapt/h9/audio_comp/audio_comp_adec.c
+--- a/pipeline/src/adapt/h9/audio_comp/audio_comp_adec.c	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/adapt/h9/audio_comp/audio_comp_adec.c	2026-10-10 17:11:03.955586021 +0800
+@@ -172,7 +172,7 @@
+ 
+     td_s32 ret = ss_mpi_adec_send_stream(adec_chn, &audio_stream, block);
+     if (ret == OT_ERR_ADEC_BUF_FULL) {
+-        ret = HI_MAPI_ADEC_ERR_BUF_FULL;
++        return HI_MAPI_ADEC_ERR_BUF_FULL;
+     }
+     CHECK_MAPI_RET(HI_MAPI_MOD_ADEC, "ss_mpi_adec_send_stream", ret);
+ 
+@@ -190,6 +190,9 @@
+     CHECK_MAPI_SAFEFUNC_RET(HI_MAPI_MOD_ADEC, "memset_s", ret);
+ 
+     ret = ss_mpi_adec_get_frame(adec_chn, &frm_info, block);
++    if (ret == OT_ERR_ADEC_BUF_EMPTY) {
++        return HI_MAPI_ADEC_ERR_BUF_EMPTY;
++    }
+     CHECK_MAPI_RET(HI_MAPI_MOD_ADEC, "ss_mpi_adec_get_frame", ret);
+ 
+     audio_frame_info->index = frm_info.id;
+diff -Nur a/pipeline/src/adapt/h9/audio_comp/audio_comp_ao.c b/pipeline/src/adapt/h9/audio_comp/audio_comp_ao.c
+--- a/pipeline/src/adapt/h9/audio_comp/audio_comp_ao.c	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/adapt/h9/audio_comp/audio_comp_ao.c	2026-10-10 17:11:03.955586021 +0800
+@@ -313,6 +313,9 @@
+     }
+ 
+     td_s32 ret = ss_mpi_ao_send_frame(ao_hdl, ao_chn_hdl, &frame, timeout);
++    if (ret == OT_ERR_AO_BUF_FULL) {
++        return HI_MAPI_AO_ERR_BUF_FULL;
++    }
+     CHECK_MAPI_RET(HI_MAPI_MOD_AO, "ss_mpi_ao_send_frame", ret);
+ 
+     return TD_SUCCESS;
+diff -Nur a/pipeline/src/adapt/h9/mapi_sys_adapt.c b/pipeline/src/adapt/h9/mapi_sys_adapt.c
+--- a/pipeline/src/adapt/h9/mapi_sys_adapt.c	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/adapt/h9/mapi_sys_adapt.c	2026-10-10 17:11:03.951783857 +0800
+@@ -27,6 +27,7 @@
+ #include "ss_mpi_sys_mem.h"
+ #include "securec.h"
+ #include "ss_vqe_register.h"
++#include "ot_vqe_register.h"
+ #include "hi_mapi_audio_adapt_define.h"
+ #include "ss_mpi_audio.h"
+ 
+@@ -55,6 +56,10 @@
+ 
+     /* TalkVQE */
+ #ifdef SUPPORT_TALKVQE
++    /* TalkV2 has a dedicated module and is not covered by the legacy
++     * AEC/AGC/ANR handles below. */
++    vqe_reg_cfg.talkv2_mod_cfg.handle = ot_vqe_talkv2_get_handle();
++
+     if ((audio_vqe_attr->talk_vqe_attr.open_mask & HI_MAPI_AI_TALKVQE_MASK_HPF) ||
+         (audio_vqe_attr->ao_vqe_attr.open_mask & HI_MAPI_AO_VQE_MASK_HPF)) {
+         vqe_reg_cfg.hpf_mod_cfg.handle = ss_vqe_hpf_get_handle();
+diff -Nur a/pipeline/src/adec/mapi_adec.c b/pipeline/src/adec/mapi_adec.c
+--- a/pipeline/src/adec/mapi_adec.c	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/adec/mapi_adec.c	2026-10-10 17:11:03.947981694 +0800
+@@ -309,6 +309,9 @@
+     MAPI_MUTEX_UNLOCK(g_adec_func_lock[adec_hdl]);
+ 
+     td_s32 ret = audio_comp_adec_send_stream(adec_hdl, adec_stream, block, payload_format);
++    if (ret == HI_MAPI_ADEC_ERR_BUF_FULL) {
++        return ret;
++    }
+     CHECK_MAPI_RET(HI_MAPI_MOD_ADEC, "audio_comp_adec_send_stream", ret);
+ 
+     return TD_SUCCESS;
+@@ -332,6 +335,9 @@
+     MAPI_MUTEX_UNLOCK(g_adec_func_lock[adec_hdl]);
+ 
+     ret = audio_comp_adec_get_frame(adec_hdl, audio_frame_info, block);
++    if (ret == HI_MAPI_ADEC_ERR_BUF_EMPTY) {
++        return ret;
++    }
+     CHECK_MAPI_RET(HI_MAPI_MOD_ADEC, "audio_comp_adec_get_frame", ret);
+ 
+     return ret;
+diff -Nur a/pipeline/src/ao/arch/hi3516cv610/mapi_ao_arch.c b/pipeline/src/ao/arch/hi3516cv610/mapi_ao_arch.c
+--- a/pipeline/src/ao/arch/hi3516cv610/mapi_ao_arch.c	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/ao/arch/hi3516cv610/mapi_ao_arch.c	2026-10-10 17:11:03.959388184 +0800
+@@ -37,9 +37,9 @@
+      * to ss_mpi_ao_set_pub_attr as the hardware chn_cnt and is rejected for
+      * the mono inner-codec configuration. */
+     ao_context->chn_cnt = 1;
+-    /* Inner-codec AO owns its clock; the external ES7210 input clock is not
+-     * shared with AO in the validated offline_voice hardware path. */
+-    ao_context->clk_sel = 0;
++    /* Share the inner-codec clock with AI so the TalkV2 reference and capture
++     * streams stay sample-synchronous. */
++    ao_context->clk_sel = 1;
+     ao_context->expand_flag = 0;
+     ao_context->frm_num = MAPI_AO_FRAME_CACHED_CNT;
+     ao_context->ao_attr.i2s_type = HI_MAPI_AIO_I2STYPE_INNERCODEC;
+diff -Nur a/pipeline/src/ao/mapi_ao.c b/pipeline/src/ao/mapi_ao.c
+--- a/pipeline/src/ao/mapi_ao.c	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/ao/mapi_ao.c	2026-10-10 17:11:03.959388184 +0800
+@@ -526,6 +526,10 @@
+     }
+ 
+     td_s32 ret = audio_comp_ao_send_frame(ao_hdl, ao_chn_hdl, audio_frame, timeout);
++    if (ret == HI_MAPI_AO_ERR_BUF_FULL) {
++        MAPI_MUTEX_UNLOCK(g_ao_func_lock[ao_hdl]);
++        return ret;
++    }
+     CHECK_MAPI_RET_UNLOCK(HI_MAPI_MOD_AO, "audio_comp_ao_send_frame", ret, g_ao_func_lock[ao_hdl]);
+ 
+     MAPI_MUTEX_UNLOCK(g_ao_func_lock[ao_hdl]);
+diff -Nur a/pipeline/src/include/mapi_acap_inner.h b/pipeline/src/include/mapi_acap_inner.h
+--- a/pipeline/src/include/mapi_acap_inner.h	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/include/mapi_acap_inner.h	2026-10-10 17:11:03.963190348 +0800
+@@ -28,8 +28,8 @@
+ #endif
+ #endif /* __cplusplus */
+ 
+-#define MAPI_ACAP_FRAME_CACHED_CNT   5
+-#define MAPI_ACAP_FRAME_CACHED_DEPTH 5
++#define MAPI_ACAP_FRAME_CACHED_CNT   15
++#define MAPI_ACAP_FRAME_CACHED_DEPTH 15
+ 
+ #define MAPI_VQE_ANR_NOISE_DB_THR  45
+ #define MAPI_VQE_ANR_NR_INTENSITY  15
+diff -Nur a/pipeline/src/venc/mapi_venc.c b/pipeline/src/venc/mapi_venc.c
+--- a/pipeline/src/venc/mapi_venc.c	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/venc/mapi_venc.c	2026-10-10 17:11:03.959388184 +0800
+@@ -571,12 +571,12 @@
+     }
+     MAPI_MUTEX_LOCK(g_venc_func_lock[venc_hdl]);
+ 
+-    ret = mapi_adapt_venc_destroy_chn(venc_hdl);
+-    CHECK_MAPI_FUNC_RUN_PRINT(HI_MAPI_MOD_VENC, "mapi_adapt_venc_destroy_chn", ret, funcRetErr);
+-
+     ret = mapi_venc_deinit_data_thread(venc_hdl);
+     CHECK_MAPI_FUNC_RUN_PRINT(HI_MAPI_MOD_VENC, "mapi_venc_deinit_data_thread", ret, funcRetErr);
+ 
++    ret = mapi_adapt_venc_destroy_chn(venc_hdl);
++    CHECK_MAPI_FUNC_RUN_PRINT(HI_MAPI_MOD_VENC, "mapi_adapt_venc_destroy_chn", ret, funcRetErr);
++
+     if (funcRetErr) {
+         MAPI_MUTEX_UNLOCK(g_venc_func_lock[venc_hdl]);
+         return HI_MAPI_VENC_EBUSY;

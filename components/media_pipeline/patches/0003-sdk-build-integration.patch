@@ -1,0 +1,80 @@
+diff -Nur a/log/README.md b/log/README.md
+--- a/log/README.md	2026-09-28 18:18:05.000000000 +0800
++++ b/log/README.md	2026-10-10 17:11:04.024024963 +0800
+@@ -301,49 +301,3 @@
+ |----|------|
+ | `0` | 成功 |
+ | `-1` | 参数非法 / 文件操作失败 / 重复初始化 / 未初始化（Deinit）/ 超过等级上限 |
+-
+----
+-
+-## 相关案例与文档
+-
+-| 案例 | 说明 |
+-|------|------|
+-| [ai_table_lamp](https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board_private/blob/master/references/ai_table_lamp/README.md) | 台灯应用，组件层调用示例 |
+-| [cloud_agent](https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board_private/blob/master/references/cloud_agent/README.md) | 云智能体应用，组件层调用示例 |
+-| [offline_voice_ac_control](https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board_private/blob/master/references/offline_voice_ac_control/README.md) | 离线语音控制应用，组件层调用示例 |
+-| [zeroclaw_base](https://gitcode.com/HiSpark/hi_aiot_solution_cv610_ev_board_private/blob/master/references/zeroclaw_base/README.md) | zeroclaw 基础应用，组件层调用示例 |
+-
+----
+-
+-## 补充说明
+-
+-**线程安全：** 终端模式依赖 libc `fprintf` 的 `flockfile` 内部锁，多线程并发安全，不链接 pthread。文件模式通过 `pthread_mutex_t` 保护共享文件状态和初始化过程，多线程并发安全，`CMakeLists.txt` 在 `LOG_SAVE_TO_FILE=ON` 时自动链接 `pthread`。静态变量 `g_isTty` 通过 `pthread_once`（即 `g_isTtyOnce`）保证多线程环境下首次初始化的原子性。
+-
+-**等级上限约束：** `HI_LOG_SetEnabledLevel()` 只允许在 `[FATAL, Init 时的初始等级]` 范围内收紧，不能放宽超过初始化时设定的上限。例如 `Init` 时传入 `INFO`，运行时只能调整到 `FATAL`、`ERROR`、`WARN` 或 `INFO`，调用 `SetEnabledLevel(HI_LOG_LEVEL_DEBUG)` 会返回 `-1`。
+-
+-**双文件轮转：** 文件模式采用双文件策略。`file1` 写满后切换写 `file2`，`file2` 写满后清空 `file1` 重新写入，每个进程始终保留最近约 `fileSize ~ 2 × fileSize` 字节的日志。`fileSize` 参数是触发轮转的阈值，不是单文件的精确大小上限。第二个文件命名规则：在原文件名基础上加 `_2` 后缀（如 `app.log` → `app_2.log`）。
+-
+-**文件路径：** 默认日志文件路径 `filePath` 相对于进程运行时的**当前工作目录**，与可执行文件位置无关。嵌入式场景建议通过 `HI_LOG_Init` 传入绝对路径，例如 `HI_LOG_Init("/var/log/ai_table_lamp/app_vi.log", &level, 0)`。
+-
+-**多进程限制：** 文件模式不支持多进程同时写入同一文件。`g_fileCurrentSize` 是进程私有计数，多进程共写同一文件时轮转判断失效，文件可能无限增长，极端情况下，下一个进程的轮转会清空另一个进程正在写入的文件导致数据丢失。强烈建议为每个进程指定独立文件路径，配合通配符统一查询：
+-
+-```bash
+-grep -E "ERROR|WARN" /var/log/app_*.log | tail -20
+-```
+-
+-**消息长度限制：** `hi_log.c` 内部使用两个固定大小的栈上缓冲区：
+-
+-- `userBuf[384]`：存储格式化后的用户消息，有效内容最多 383 字节（含 `'\0'`），由 `logBuf[512]` 总容量约束
+-- `logBuf[512]`：存储完整日志行（时间戳约 22 字节 + 等级约 10 字节 + `tag` + 函数名 + 行号 + 用户消息），有效内容最多 511 字节
+-
+-超出限制的部分会被截断，不会崩溃，但日志内容不完整。截断发生时会向 `stderr` 输出警告信息（如 `[hi_log] log message truncated (buffer size: 384)`）。`tag`（`mode`）建议不超过 32 字节，过长的 `tag` 会挤占用户消息的空间。若需更长的消息，修改 `hi_log.c` 中对应的缓冲区大小：
+-
+-```c
+-/* hi_log.c — 按需调整，logBuf 须大于 userBuf + 约 80~128 字节前缀 */
+-char userBuf[384] = {0};
+-char logBuf[512]  = {0};
+-```
+-
+-**重复初始化：** `HI_LOG_Init` 在已初始化状态下调用返回 `-1` 并打印提示，需先调用 `HI_LOG_Deinit` 再重新初始化。`HI_LOG_Deinit` 在未初始化状态下调用同样返回 `-1`。
+-
+-**量产建议：** 量产镜像编译时传入 `-DLOG_ENABLE=OFF` 将所有日志代码从二进制中完全消除。若需保留关键错误日志，传入 `-DLOG_ENABLE=ON` 并在运行时通过 `HI_LOG_Init` 指定等级为 `HI_LOG_LEVEL_ERROR`。
+diff -Nur a/pipeline/CMakeLists.txt b/pipeline/CMakeLists.txt
+--- a/pipeline/CMakeLists.txt	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/CMakeLists.txt	2026-10-10 17:11:04.024024963 +0800
+@@ -203,8 +203,8 @@
+ 
+ # --- 公共头文件路径 ---
+ target_include_directories(pipeline_config INTERFACE
+-    ${HI_SDK_ROOT}/soc/config/gcc
+     ${MPP_HEADER_LINUX}
++    ${MPP_CONFIG_LINUX}
+     ${NDK_PATH}/include
+     ${NDK_PATH}/include/common
+     ${NDK_PATH}/include/adapt
+diff -Nur a/pipeline/src/CMakeLists.txt b/pipeline/src/CMakeLists.txt
+--- a/pipeline/src/CMakeLists.txt	2026-09-28 18:18:05.000000000 +0800
++++ b/pipeline/src/CMakeLists.txt	2026-10-10 17:11:04.024024963 +0800
+@@ -43,8 +43,8 @@
+ target_link_libraries(hi_mapi PRIVATE hi_log)
+ target_link_libraries(hi_mapi_static INTERFACE hi_log)
+ 
+-if(DEFINED HI_SDK_ROOT AND NOT HI_SDK_ROOT STREQUAL "")
+-    target_link_directories(hi_mapi_static INTERFACE "${HI_SDK_ROOT}/soc/libs/musl")
++if(MPP_LIB_LINUX)
++    target_link_directories(hi_mapi_static INTERFACE "${MPP_LIB_LINUX}")
+     target_link_libraries(hi_mapi_static INTERFACE
+         ss_mpi ss_mpi_sysbind ss_mpi_sysmem ss_mpi_audio ss_mpi_audio_adp
+         voice_engine upvqe dnvqe opus

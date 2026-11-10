@@ -1,0 +1,18 @@
+config LVGL_WIDGETS_DRM_DEVICE
+    string "DRM display device"
+    default "/dev/dri/card0"
+    help
+      DRM card opened by the LVGL Linux DRM backend.
+
+config LVGL_WIDGETS_INPUT_DEVICE
+    string "Touch input device"
+    default "/dev/input/event0"
+    help
+      Linux evdev device used as the LVGL pointer input.
+
+config LVGL_WIDGETS_SERIAL_DEVICE
+    string "Encoder terminal device"
+    default "/dev/tty"
+    help
+      Current controlling terminal used for encoder key input when the touch
+      input device is unavailable.

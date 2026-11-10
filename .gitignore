@@ -1,0 +1,7 @@
+/dist/
+/.platform.*/
+__pycache__/
+build/
+out/
+.config
+.config.old

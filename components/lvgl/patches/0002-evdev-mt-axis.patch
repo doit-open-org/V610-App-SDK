@@ -1,0 +1,27 @@
+--- a/src/drivers/evdev/lv_evdev.c
++++ b/src/drivers/evdev/lv_evdev.c
+@@ -552,14 +552,22 @@
+             dsc->min_x = absinfo.minimum;
+             dsc->max_x = absinfo.maximum;
+         }
++        else if(ioctl(dsc->fd, EVIOCGABS(ABS_MT_POSITION_X), &absinfo) == 0) {
++            dsc->min_x = absinfo.minimum;
++            dsc->max_x = absinfo.maximum;
++        }
+         else {
+-            LV_LOG_INFO("ioctl EVIOCGABS(ABS_X) failed: %s", strerror(errno));
++            LV_LOG_INFO("failed to query absolute X axis: %s", strerror(errno));
+         }
+         if(ioctl(dsc->fd, EVIOCGABS(ABS_Y), &absinfo) == 0) {
+             dsc->min_y = absinfo.minimum;
+             dsc->max_y = absinfo.maximum;
+         }
++        else if(ioctl(dsc->fd, EVIOCGABS(ABS_MT_POSITION_Y), &absinfo) == 0) {
++            dsc->min_y = absinfo.minimum;
++            dsc->max_y = absinfo.maximum;
++        }
+         else {
+-            LV_LOG_INFO("ioctl EVIOCGABS(ABS_Y) failed: %s", strerror(errno));
++            LV_LOG_INFO("failed to query absolute Y axis: %s", strerror(errno));
+         }
+     }

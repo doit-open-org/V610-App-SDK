@@ -1,0 +1,8 @@
+config MIPK_AUDIO
+    bool "Build mipk_audio (microphone audio into a mipk pipeline)"
+    default n
+    select MIPK_RUNTIME
+    select MEDIA_ENGINE
+    help
+      Glue between media_engine and mipk_runtime for audio models: opens
+      a model package and feeds captured PCM into its pipeline.

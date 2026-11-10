@@ -1,0 +1,57 @@
+config MIPK_RUNTIME
+    bool "Build the mipk model inference runtime"
+    default n
+    help
+      Model inference runtime, built from a checkout of the mipk
+      repository given by MIPK_PATH. Pick the modules the application's model
+      packages need; a package naming a module that is not built fails to
+      open with a message naming it.
+
+if MIPK_RUNTIME
+
+config MIPK_MODEL_YOLO
+    bool "YOLO detection decoder"
+    default n
+
+config MIPK_MODEL_YOLO_POSE
+    bool "YOLO pose decoder"
+    default n
+
+config MIPK_MODEL_CLASSIFICATION
+    bool "Classification decoder"
+    default n
+
+config MIPK_MODEL_KEYPOINTS
+    bool "Keypoint decoder"
+    default n
+
+config MIPK_MODEL_MICROWAKEWORD
+    bool "MicroWakeWord decoder"
+    default n
+    help
+      Also builds the audio operators it needs (tfmicrofrontend,
+      wake_word_trigger, with the TF MicroFrontend feature extractor).
+
+menu "Modules from mipk_extra_module"
+    # The mipk_extra_module repository is found next to the mipk checkout or
+    # through MIPK_EXTRA_MODULE_PATH. Each module here is built and
+    # registered exactly like a built-in one.
+
+config MIPK_EXTRA_FASTESTDET
+    bool "FastestDet decoder (fastestdet)"
+    default n
+
+config MIPK_EXTRA_MEDIAPIPE_HAND
+    bool "MediaPipe palm detection + hand landmarks (mediapipe_hand)"
+    default n
+
+config MIPK_EXTRA_MODULES
+    string "Other module directory names (space separated)"
+    default ""
+    help
+      Modules in mipk_extra_module that have no switch above, by directory
+      name, for example "my_decoder other_decoder".
+
+endmenu
+
+endif

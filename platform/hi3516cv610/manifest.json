@@ -1,0 +1,337 @@
+{
+  "schema_version": 5,
+  "platform_version": "2.1.0",
+  "target": {
+    "chip": "hi3516cv610",
+    "board": "cove_610",
+    "abi": {
+      "cpu": "cortex-a7",
+      "float": "softfp",
+      "fpu": "neon-vfpv4",
+      "libc": "musl"
+    }
+  },
+  "compiler": {
+    "version": "10.3.0",
+    "target": "arm-linux-musleabi",
+    "description": "arm-v01c02-linux-musleabi-gcc (musl-1.2.3 linux-5.10 CS71.26.06.1  2026-06-09 12:00:00) 10.3.0"
+  },
+  "source": {
+    "kind": "buildroot-host",
+    "sha256": "a0e5a608e25aed66a9fb1fa8675476f1c30e61cc4efd79d792944e1fac8aec8a"
+  },
+  "hisilicon": {
+    "source": {
+      "sdk": "Hi3516CV610",
+      "version": "tag_V2.1.0_Beta",
+      "archive": "Hi3516CV610_tag_V2.1.0_Beta.tgz",
+      "buildroot_package": "hisi-osdrv"
+    },
+    "libraries": {
+      "common": [
+        "libot_base.a",
+        "libot_base.so",
+        "libot_chnl.a",
+        "libot_chnl.so",
+        "libot_irq.a",
+        "libot_irq.so",
+        "libot_mpi_sysmem.a",
+        "libot_mpi_sysmem.so",
+        "libot_osal.a",
+        "libot_osal.so",
+        "libot_pm.a",
+        "libot_pm.so",
+        "libot_sys.a",
+        "libot_sys.so",
+        "libot_vb.a",
+        "libot_vb.so",
+        "libot_vca.a",
+        "libot_vca.so",
+        "libsecurec.a",
+        "libsecurec.so",
+        "libss_mpi.a",
+        "libss_mpi.so",
+        "libss_mpi_sysbind.a",
+        "libss_mpi_sysbind.so",
+        "libss_mpi_sysmem.a",
+        "libss_mpi_sysmem.so"
+      ],
+      "mpp": [
+        "libaac_comm.a",
+        "libaac_comm.so",
+        "libaac_dec.a",
+        "libaac_dec.so",
+        "libaac_enc.a",
+        "libaac_enc.so",
+        "libaac_sbr_dec.a",
+        "libaac_sbr_dec.so",
+        "libaac_sbr_enc.a",
+        "libaac_sbr_enc.so",
+        "libdnvqe.a",
+        "libdnvqe.so",
+        "libmbedtls_harden_adapt.a",
+        "libmbedtls_harden_adapt.so",
+        "libmp3_dec.a",
+        "libmp3_dec.so",
+        "libmp3_enc.so",
+        "libmp3_lame.so",
+        "libopus.a",
+        "libopus.so",
+        "libot_h264e.a",
+        "libot_h264e.so",
+        "libot_h265e.a",
+        "libot_h265e.so",
+        "libot_jpege.a",
+        "libot_jpege.so",
+        "libot_mpi_cipher.a",
+        "libot_mpi_cipher.so",
+        "libot_mpi_km.a",
+        "libot_mpi_km.so",
+        "libot_mpi_otp.a",
+        "libot_mpi_otp.so",
+        "libot_pwm.a",
+        "libot_pwm.so",
+        "libot_rc.a",
+        "libot_rc.so",
+        "libot_rgn.a",
+        "libot_rgn.so",
+        "libot_sample_ist.a",
+        "libot_sample_ist.so",
+        "libot_svac3e.a",
+        "libot_svac3e.so",
+        "libot_venc.a",
+        "libot_venc.so",
+        "libot_vgs.a",
+        "libot_vgs.so",
+        "libot_vi.a",
+        "libot_vi.so",
+        "libot_vpp.a",
+        "libot_vpp.so",
+        "libot_vpss.a",
+        "libot_vpss.so",
+        "libss_bcd.a",
+        "libss_bcd.so",
+        "libss_mpi_audio.a",
+        "libss_mpi_audio.so",
+        "libss_mpi_audio_adp.a",
+        "libss_mpi_audio_adp.so",
+        "libss_mpi_cipher.a",
+        "libss_mpi_cipher.so",
+        "libss_mpi_devstat.a",
+        "libss_mpi_devstat.so",
+        "libss_mpi_km.a",
+        "libss_mpi_km.so",
+        "libss_mpi_otp.a",
+        "libss_mpi_otp.so",
+        "libss_mpi_syskol.a",
+        "libss_mpi_syskol.so",
+        "libss_mpi_uvc.a",
+        "libss_mpi_uvc.so",
+        "libupvqe.a",
+        "libupvqe.so",
+        "libvoice_engine.a",
+        "libvoice_engine.so",
+        "libvqe_aec.a",
+        "libvqe_aec.so",
+        "libvqe_agc.a",
+        "libvqe_agc.so",
+        "libvqe_anr.a",
+        "libvqe_anr.so",
+        "libvqe_common.so",
+        "libvqe_eq.a",
+        "libvqe_eq.so",
+        "libvqe_hpf.a",
+        "libvqe_hpf.so",
+        "libvqe_hs.a",
+        "libvqe_hs.so",
+        "libvqe_record.a",
+        "libvqe_record.so",
+        "libvqe_res.a",
+        "libvqe_res.so",
+        "libvqe_talkv2.a",
+        "libvqe_talkv2.so"
+      ],
+      "isp": [
+        "libacs.a",
+        "libacs.so",
+        "libbnr.a",
+        "libbnr.so",
+        "libcalcflicker.a",
+        "libcalcflicker.so",
+        "libdehaze.a",
+        "libdehaze.so",
+        "libdrc.a",
+        "libdrc.so",
+        "libextend_stats.a",
+        "libextend_stats.so",
+        "libir_auto.a",
+        "libir_auto.so",
+        "libldci.a",
+        "libldci.so",
+        "libot_isp.a",
+        "libot_isp.so",
+        "libot_mpi_isp.a",
+        "libot_mpi_isp.so",
+        "libot_piris.a",
+        "libot_piris.so",
+        "libot_sensor_i2c.a",
+        "libot_sensor_i2c.so",
+        "libot_sensor_spi.a",
+        "libot_sensor_spi.so",
+        "libsns_cs5186.a",
+        "libsns_cs5186.so",
+        "libsns_gc4023.a",
+        "libsns_gc4023.so",
+        "libsns_hy006_3814_0011.a",
+        "libsns_hy006_3814_0011.so",
+        "libsns_os04d10.a",
+        "libsns_os04d10.so",
+        "libsns_sc431hai.a",
+        "libsns_sc431hai.so",
+        "libsns_sc4336p.a",
+        "libsns_sc4336p.so",
+        "libsns_sc450ai.a",
+        "libsns_sc450ai.so",
+        "libsns_sc500ai.a",
+        "libsns_sc500ai.so",
+        "libss_mpi_ae.a",
+        "libss_mpi_ae.so",
+        "libss_mpi_awb.a",
+        "libss_mpi_awb.so",
+        "libss_mpi_isp.a",
+        "libss_mpi_isp.so",
+        "libss_mpi_smartae.a",
+        "libss_mpi_smartae.so"
+      ],
+      "svp": [
+        "libaiisp.a",
+        "libaiisp.so",
+        "libaiservice_comm.a",
+        "libaiservice_comm.so",
+        "libface_capture.a",
+        "libface_capture.so",
+        "libfr.a",
+        "libfr.so",
+        "libot_aiisp.a",
+        "libot_aiisp.so",
+        "libprotobuf-c.a",
+        "libprotobuf-c.so",
+        "libprotobuf-c.so.1",
+        "libprotobuf-c.so.1.0.0",
+        "libss_ivs_md.a",
+        "libss_ivs_md.so",
+        "libss_mpi_aibnr.a",
+        "libss_mpi_aibnr.so",
+        "libss_mpi_aidetect.a",
+        "libss_mpi_aidetect.so",
+        "libss_mpi_aivsr.a",
+        "libss_mpi_aivsr.so",
+        "libss_mpi_ive.a",
+        "libss_mpi_ive.so",
+        "libsvp_acl.a",
+        "libsvp_acl.so",
+        "libsvp_aicpu.so",
+        "libvlpr.a",
+        "libvlpr.so"
+      ]
+    }
+  },
+  "packages": {
+    "export_policy": "development-files-original-layout",
+    "items": {
+      "bluez5_utils": {
+        "pkg_config": [
+          "bluez"
+        ],
+        "file_count": 15
+      },
+      "dbus": {
+        "pkg_config": [
+          "dbus-1"
+        ],
+        "file_count": 24
+      },
+      "expat": {
+        "pkg_config": [
+          "expat"
+        ],
+        "file_count": 11
+      },
+      "libffi": {
+        "pkg_config": [
+          "libffi"
+        ],
+        "file_count": 6
+      },
+      "libglib2": {
+        "pkg_config": [
+          "gio-2.0",
+          "gio-unix-2.0",
+          "girepository-2.0",
+          "glib-2.0",
+          "gmodule-2.0",
+          "gmodule-export-2.0",
+          "gmodule-no-export-2.0",
+          "gobject-2.0",
+          "gthread-2.0"
+        ],
+        "file_count": 336
+      },
+      "libnl": {
+        "pkg_config": [
+          "libnl-3.0",
+          "libnl-genl-3.0",
+          "libnl-idiag-3.0",
+          "libnl-nf-3.0",
+          "libnl-route-3.0",
+          "libnl-xfrm-3.0"
+        ],
+        "file_count": 145
+      },
+      "libpthread-stubs": {
+        "pkg_config": [
+          "pthread-stubs"
+        ],
+        "file_count": 1
+      },
+      "libzlib": {
+        "pkg_config": [
+          "zlib"
+        ],
+        "file_count": 6
+      },
+      "musl-compat-headers": {
+        "pkg_config": [],
+        "file_count": 2
+      },
+      "ncurses": {
+        "pkg_config": [
+          "form",
+          "menu",
+          "ncurses",
+          "panel"
+        ],
+        "file_count": 27
+      },
+      "pcre2": {
+        "pkg_config": [
+          "libpcre2-8",
+          "libpcre2-posix"
+        ],
+        "file_count": 11
+      },
+      "readline": {
+        "pkg_config": [
+          "history",
+          "readline"
+        ],
+        "file_count": 16
+      },
+      "uboot-tools": {
+        "pkg_config": [],
+        "file_count": 2
+      }
+    }
+  },
+  "content_sha256": "146f1f7848450c8497110f5a354c11c37302cf7ca18f7ee38a2d51b2a7307568"
+}

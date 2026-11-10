@@ -1,0 +1,3 @@
+config HELLOWORLD_MESSAGE
+    string "Message printed by the example"
+    default "configured by hifw"

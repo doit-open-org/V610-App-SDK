@@ -1,0 +1,9 @@
+config MIPK_VIDEO
+    bool "Build mipk_video (camera frames into a mipk pipeline)"
+    default n
+    select MIPK_RUNTIME
+    select MEDIA_ENGINE
+    help
+      Glue between media_engine and mipk_runtime for vision models: opens
+      a model package, feeds camera frames into its pipeline and converts
+      the results.

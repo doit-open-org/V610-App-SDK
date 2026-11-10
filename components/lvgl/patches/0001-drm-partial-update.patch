@@ -1,0 +1,153 @@
+--- a/src/drivers/display/drm/lv_linux_drm.c
++++ b/src/drivers/display/drm/lv_linux_drm.c
+@@ -78,6 +78,17 @@
+     drmModePropertyPtr conn_props[128];
+     drm_buffer_t drm_bufs[BUFFER_CNT];
+     drm_buffer_t * act_buf;
++    int modeset_done;   /* per-display one-shot gate for the initial atomic
++                         * modeset. Replaces a file-scope `static int first`
++                         * that was shared across displays and broke multi-
++                         * display apps (only one display got its modeset). */
++    /* Pending damage clips accumulated across multiple flush_cb calls in one
++     * render cycle. Submitted as a FB_DAMAGE_CLIPS blob array on the final
++     * (flush_is_last) commit so multi-rect dirty patterns are fully covered. */
++#define DRM_MAX_DAMAGE_CLIPS 32
++    lv_area_t pending_clips[DRM_MAX_DAMAGE_CLIPS];
++    int pending_clip_count;
++    bool clip_overflow;
+ #if LV_USE_LINUX_DRM_GBM_BUFFERS
+     struct gbm_device * gbm_device;
+ #endif
+@@ -112,7 +123,8 @@
+ #endif
+ 
+ static int drm_setup_buffers(drm_dev_t * drm_dev);
+-static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf);
++static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf,
++                                const lv_area_t * clips, int n_clips);
+ static void drm_flush_wait(lv_display_t * drm_dev);
+ static void drm_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map);
+ static void drm_dmabuf_set_active_buf(lv_event_t * event);
+@@ -440,10 +452,10 @@
+     return 0;
+ }
+ 
+-static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf)
++static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf,
++                                const lv_area_t * clips, int n_clips)
+ {
+     int ret;
+-    static int first = 1;
+     uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK;
+ 
+ #if LV_USE_LINUX_DRM_GBM_BUFFERS
+@@ -459,8 +471,9 @@
+ 
+     drm_dev->req = drmModeAtomicAlloc();
+ 
+-    /* On first Atomic commit, do a modeset */
+-    if(first) {
++    /* On this display's first atomic commit, do a modeset. Flag lives in
++     * drm_dev_t so each display gets its own one-shot. */
++    if(!drm_dev->modeset_done) {
+         drm_add_conn_property(drm_dev, "CRTC_ID", drm_dev->crtc_id);
+ 
+         drm_add_crtc_property(drm_dev, "MODE_ID", drm_dev->blob_id);
+@@ -468,7 +481,7 @@
+ 
+         flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+ 
+-        first = 0;
++        drm_dev->modeset_done = 1;
+     }
+ 
+     drm_add_plane_property(drm_dev, "FB_ID", buf->fb_handle);
+@@ -482,10 +495,42 @@
+     drm_add_plane_property(drm_dev, "CRTC_W", drm_dev->width);
+     drm_add_plane_property(drm_dev, "CRTC_H", drm_dev->height);
+ 
++    /* Partial-update hint: pass every dirty rectangle accumulated this frame
++     * as the FB_DAMAGE_CLIPS blob (an array of struct drm_mode_rect). The
++     * kernel's mipi_dbi driver merges them via drm_atomic_helper_damage_merged
++     * and SPI-transfers only the union; more sophisticated drivers can iterate
++     * each clip individually. Gracefully ignored when the driver doesn't
++     * advertise the property — atomic commit succeeds with full-frame transfer.
++     *
++     * The blob must outlive the atomic commit ioctl so the kernel can read its
++     * data during atomic_check; destroy it only after commit returns. */
++    uint32_t damage_blob_id = 0;
++    if(clips && n_clips > 0) {
++        struct drm_mode_rect_local { int32_t x1, y1, x2, y2; }
++            dmg[DRM_MAX_DAMAGE_CLIPS];
++        for(int i = 0; i < n_clips; i++) {
++            dmg[i].x1 = clips[i].x1;
++            dmg[i].y1 = clips[i].y1;
++            dmg[i].x2 = clips[i].x2 + 1;
++            dmg[i].y2 = clips[i].y2 + 1;
++        }
++        if(drmModeCreatePropertyBlob(drm_dev->fd, dmg,
++                                     sizeof(dmg[0]) * n_clips,
++                                     &damage_blob_id) == 0) {
++            drm_add_plane_property(drm_dev, "FB_DAMAGE_CLIPS", damage_blob_id);
++        }
++    }
++
+     ret = drmModeAtomicCommit(drm_dev->fd, drm_dev->req, flags, drm_dev);
++
++    if(damage_blob_id) {
++        drmModeDestroyPropertyBlob(drm_dev->fd, damage_blob_id);
++    }
++
+     if(ret) {
+         LV_LOG_ERROR("drmModeAtomicCommit failed: %s (%d)", strerror(errno), errno);
+         drmModeAtomicFree(drm_dev->req);
++        drm_dev->req = NULL;   /* prevent drm_flush_wait from poll-looping forever */
+         return ret;
+     }
+ 
+@@ -1066,21 +1111,38 @@
+ 
+ static void drm_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map)
+ {
+-    if(!lv_display_flush_is_last(disp)) return;
+-
+-    LV_UNUSED(area);
+     LV_UNUSED(px_map);
+     drm_dev_t * drm_dev = lv_display_get_driver_data(disp);
+ 
++    /* Accumulate this dirty rect into the per-display pending list. LVGL may
++     * call flush_cb multiple times per render cycle (one per non-joined dirty
++     * area); we collect them all and submit on flush_is_last as a single
++     * FB_DAMAGE_CLIPS blob array — one ioctl, all rects covered. */
++    if(area) {
++        if(drm_dev->pending_clip_count < DRM_MAX_DAMAGE_CLIPS) {
++            drm_dev->pending_clips[drm_dev->pending_clip_count++] = *area;
++        } else {
++            drm_dev->clip_overflow = true;
++        }
++    }
++
++    if(!lv_display_flush_is_last(disp)) return;
++
+     LV_ASSERT(drm_dev->act_buf != NULL);
+ 
+-    if(drm_dmabuf_set_plane(drm_dev, drm_dev->act_buf)) {
+-        LV_LOG_ERROR("Flush fail");
+-        return;
+-    }
++    /* On overflow (>32 clips in one frame — extremely rare), fall back to
++     * full-frame update by passing zero clips. The kernel will refresh the
++     * whole framebuffer, guaranteeing visual correctness at the cost of a
++     * larger SPI transfer for that one frame. */
++    int n = drm_dev->clip_overflow ? 0 : drm_dev->pending_clip_count;
++    int rc = drm_dmabuf_set_plane(drm_dev, drm_dev->act_buf,
++                                  drm_dev->pending_clips, n);
+ 
+     drm_dev->act_buf = NULL;
++    drm_dev->pending_clip_count = 0;
++    drm_dev->clip_overflow = false;
+ 
++    if(rc) LV_LOG_ERROR("Flush fail");
+ }
+ 
+ static void drm_del_event_cb(lv_event_t * e)

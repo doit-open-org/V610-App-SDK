@@ -1,0 +1,6 @@
+[submodule "components/mipk_runtime/mipk"]
+	path = components/mipk_runtime/mipk
+	url = https://github.com/doit-open-org/mipk.git
+[submodule "components/mipk_runtime/mipk_extra_module"]
+	path = components/mipk_runtime/mipk_extra_module
+	url = https://github.com/doit-open-org/mipk_extra_module.git

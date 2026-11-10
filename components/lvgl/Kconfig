@@ -1,0 +1,5 @@
+config LVGL
+    bool "Build LVGL component"
+    default n
+    help
+      Build LVGL 9.5 with Linux DRM, evdev and the widgets demo.

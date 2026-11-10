@@ -1,0 +1,21 @@
+config OPENCV
+    bool "Build with OpenCV (static, compiled from source)"
+    default n
+    help
+      OpenCV 4.13 as static libraries linked into the application. They
+      are compiled from the source archive of the component the first
+      time a compiler needs them. The board image does not need to
+      provide OpenCV.
+
+if OPENCV
+
+config OPENCV_MODULES
+    string "OpenCV modules"
+    default "core,imgproc,imgcodecs"
+    help
+      Comma separated list of the OpenCV modules to build; their
+      dependencies are added automatically. The shipped source archive
+      contains core, imgproc and imgcodecs (JPEG, PNG); for others point
+      OPENCV_SOURCE_ARCHIVE at a complete OpenCV source archive.
+
+endif

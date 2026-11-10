@@ -1,0 +1,4 @@
+config MEDIA_ENGINE
+    bool "Build media_engine component"
+    default n
+    select MEDIA_PIPELINE
